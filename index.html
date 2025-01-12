@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Base Number Converter with Complements</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            text-align: center;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #3498db;
+        }
+
+        .converter {
+            margin-top: 20px;
+        }
+
+        input, select {
+            padding: 10px;
+            margin: 5px;
+            width: 300px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        #output, #steps, #complements {
+            margin-top: 20px;
+            font-size: 18px;
+            color: #2c3e50;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        #output {
+            background-color: #e6f7ff;
+            border: 1px solid #91d5ff;
+        }
+
+        #steps {
+            background-color: #fffbe6;
+            border: 1px solid #ffe58f;
+        }
+
+        #complements {
+            background-color: #f9f0ff;
+            border: 1px solid #d3adf7;
+        }
+
+        .arrow {
+            display: inline-block;
+            margin-left: 10px;
+            color: #1890ff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Multi-Base Number Converter with Complements</h1>
+        <div class="converter">
+            <select id="from-base" onchange="convert()">
+                <option value="2">Binary</option>
+                <option value="3">Ternary</option>
+                <option value="8">Octal</option>
+                <option value="10">Decimal</option>
+                <option value="16">Hexadecimal</option>
+            </select>
+            <input type="text" id="input" placeholder="Enter number" oninput="convert()">
+            <select id="to-base" onchange="convert()">
+                <option value="2">Binary</option>
+                <option value="3">Ternary</option>
+                <option value="8">Octal</option>
+                <option value="10">Decimal</option>
+                <option value="16">Hexadecimal</option>
+            </select>
+            <div id="output"></div>
+            <div id="steps"></div>
+            <div id="complements"></div>
+        </div>
+    </div>
+    <script>
+        function convert() {
+            const fromBase = parseInt(document.getElementById('from-base').value);
+            const toBase = parseInt(document.getElementById('to-base').value);
+            const input = document.getElementById('input').value.trim();
+            let output = '';
+            let steps = '';
+            let complements = '';
+
+            // Validation for input number based on fromBase
+            const validInput = {
+                2: /^[01]+(\.[01]+)?$/,
+                3: /^[0-2]+(\.[0-2]+)?$/,
+                8: /^[0-7]+(\.[0-7]+)?$/,
+                10: /^\d+(\.\d+)?$/,
+                16: /^[0-9a-fA-F]+(\.[0-9a-fA-F]+)?$/
+            };
+            if (!validInput[fromBase].test(input)) {
+                document.getElementById('output').innerHTML = 'Invalid input <span class="arrow">⟶</span>';
+                document.getElementById('steps').innerText = '';
+                document.getElementById('complements').innerText = '';
+                return;
+            }
+
+            // Conversion to decimal first
+            const parts = input.split('.');
+            const wholePart = parseInt(parts[0], fromBase);
+            const fractionalPart = parts[1] ? parseInt(parts[1], fromBase) / Math.pow(fromBase, parts[1].length) : 0;
+            const decimalValue = wholePart + fractionalPart;
+
+            // Conversion steps
+            steps = `Input (${fromBase}-base): ${input}\nConverted to Decimal: ${decimalValue}\n\nSteps:\n`;
+            if (fromBase !== 10) {
+                for (let i = 0; i < parts[0].length; i++) {
+                    steps += `${parts[0][i]} * ${fromBase}^${parts[0].length - 1 - i} = ${parseInt(parts[0][i], fromBase) * Math.pow(fromBase, parts[0].length - 1 - i)}\n`;
+                }
+                if (parts[1]) {
+                    for (let i = 0; i < parts[1].length; i++) {
+                        steps += `${parts[1][i]} * ${fromBase}^-${i + 1} = ${parseInt(parts[1][i], fromBase) * Math.pow(fromBase, -(i + 1))}\n`;
+                    }
+                }
+            }
+
+            // Conversion from decimal to target base
+            if (toBase !== 10) {
+                const wholePartConverted = Math.floor(decimalValue).toString(toBase);
+                let fraction = decimalValue - Math.floor(decimalValue);
+                let fractionalPartConverted = '';
+                while (fraction > 0 && fractionalPartConverted.length < 8) { // Limit fraction length to prevent infinite loop
+                    fraction *= toBase;
+                    fractionalPartConverted += Math.floor(fraction).toString(toBase);
+                    fraction -= Math.floor(fraction);
+                }
+                output = fractionalPartConverted ? `${wholePartConverted}.${fractionalPartConverted}` : wholePartConverted;
+                let num = decimalValue;
+                steps += `\nDecimal: ${decimalValue}\nConverted to (${toBase}-base): ${output}\n\nSteps:\n`;
+                while (num > 0) {
+                    steps += `${num} / ${toBase} = ${Math.floor(num / toBase)}, Remainder: ${num % toBase}\n`;
+                    num = Math.floor(num / toBase);
+                }
+            } else {
+                output = decimalValue.toString(10);
+                steps += `\nOutput (${toBase}-base): ${output}`;
+            }
+
+            // Calculate 2's complement
+            if (fromBase === 2) {
+                let twosComplement = (~parseInt(parts[0], 2) >>> 0).toString(2);
+                twosComplement = twosComplement.slice(twosComplement.length - parts[0].length);
+                complements += `2's Complement: ${twosComplement} <span class="arrow">⟶</span>\n`;
+            }
+
+            // Calculate 10's complement
+            if (fromBase === 10) {
+                const ninesComplement = (Math.pow(10, parts[0].length) - 1 - parseInt(parts[0])).toString();
+                const tensComplement = (parseInt(ninesComplement) + 1).toString();
+                complements += `10's Complement: ${tensComplement} <span class="arrow">⟶</span>\n`;
+            }
+
+            document.getElementById('output').innerHTML = `Converted Output: ${output} <span class="arrow">⟶</span>`;
+            document.getElementById('steps').innerHTML = steps.replace(/\n/g, '<br>') + ' <span class="arrow">⟶</span>';
+            document.getElementById('complements').innerHTML = complements.replace(/\n/g, '<br>');
+        }
+    </script>
+</body>
+</html>
